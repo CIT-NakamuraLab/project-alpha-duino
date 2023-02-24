@@ -14,10 +14,10 @@
 unsigned long sw1_time, sw2_time, sw3_time; // ボタンを放した時間
 int buzzer_one_shot = 0; // ブザーを短時間鳴らすための変数
 
-int sw1 = 0;
-int sw2 = 0;
-int sw3 = 0;
-int sensor = 0;
+bool sw1 = false;
+bool sw2 = false;
+bool sw3 = false;
+bool sensor = false;
 int sensor_raw;
 char out[127];
 
@@ -36,7 +36,7 @@ void setup() {
 
   // pinMode(SENSOR, INPUT);
   pinMode(BUZZER, OUTPUT);
-  
+
   digitalWrite(LED1, HIGH);
   digitalWrite(LED2, HIGH);
   digitalWrite(LED3, HIGH);
@@ -67,9 +67,9 @@ void time_handler() {
 void loop() {
   sensor_raw = analogRead(SENSOR);
   if (sensor_raw < 300) {
-    sensor = 1;
+    sensor = true;
   } else {
-    sensor = 0;
+    sensor = false;
   }
 
   if (digitalRead(SW1) == LOW) {
@@ -93,43 +93,45 @@ void loop() {
 
   unsigned long now = millis();
   if (now - sw1_time < BUTTON_TIME) {
-    sw1 = 1;
+    sw1 = true;
     led_ctl(LED1, now - sw1_time);
   } else {
-    sw1 = 0;
+    sw1 = false;
     digitalWrite(LED1, LOW);
   }
   if (now - sw2_time < BUTTON_TIME) {
-    sw2 = 1;
+    sw2 = true;
     led_ctl(LED2, now - sw2_time);
   } else {
-    sw2 = 0;
+    sw2 = false;
     digitalWrite(LED2, LOW);
   }
   if (now - sw3_time < BUTTON_TIME) {
-    sw3 = 1;
+    sw3 = true;
     led_ctl(LED3, now - sw3_time);
   } else {
-    sw3 = 0;
+    sw3 = false;
     digitalWrite(LED3, LOW);
   }
 
   // 起動直後はボタン反応しません。
   if (now < BUTTON_TIME) {
-    sw1 = 0;
-    sw2 = 0;
-    sw3 = 0;
+    sw1 = false;
+    sw2 = false;
+    sw3 = false;
   }
 
 
-  // 何かホストからデータが送られてきたとき、ボタンが押されてるときだけデータを送信します。
-  if (Serial.available() > 0 || sw1 == sw2 == sw3) {
-    int tmp = 0;
-    while (tmp != -1) {
-      tmp = Serial.read();
-    }
-    sprintf(out, "_____nlab_project_alpha;sw1=%d;sw2=%d;sw3=%d;sensor=%d;sensor_raw=%04d;millis=%lu;_____", sw1, sw2, sw3, sensor, sensor_raw, now);
-    Serial.println(out);
+  // 何かホストからデータが送られてきたときデータを送信します。
+  if (Serial.available() > 0) {
+    Serial.read();
+    // sprintf(out, "_____nlab_project_alpha;sw1=%d;sw2=%d;sw3=%d;sensor=%d;sensor_raw=%04d;millis=%lu;_____", sw1, sw2, sw3, sensor, sensor_raw, now);
+    // Serial.println(out);
+
+    int d = get_data();
+    Serial.write(0x00);
+    Serial.write(d);
+    Serial.write(~d);
   }
   delay(20);
 }
@@ -143,4 +145,30 @@ void led_ctl(int pin, unsigned long time) {
   } else {
     digitalWrite(pin, LOW);
   }
+}
+
+bool serial_receive() {
+  delay(1);
+  int data_size = Serial.available();
+  int input[data_size] = {};
+  for (int i = 0; i < data_size; i++) {
+    input[i] = Serial.read();
+  }
+}
+
+int get_data() {
+  int d = 0b10000000;
+  if (sensor) {
+    d += 0b00000001;
+  }
+  if (sw1) {
+    d += 0b00000010;
+  }
+  if (sw2) {
+    d += 0b00000100;
+  }
+  if (sw3) {
+    d += 0b00001000;
+  }
+  return d;
 }
