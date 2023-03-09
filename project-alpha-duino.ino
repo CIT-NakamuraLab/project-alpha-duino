@@ -129,9 +129,9 @@ void loop() {
     // Serial.println(out);
 
     int d = get_data();
-    Serial.write(0x00);
-    Serial.write(d);
-    Serial.write(~d);
+    Serial.write((byte) 0x00);
+    Serial.write((byte) d);
+    Serial.write((byte) ~d);
   }
   delay(20);
 }
